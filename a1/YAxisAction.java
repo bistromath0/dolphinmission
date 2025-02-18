@@ -1,30 +1,36 @@
-package myGame;
+package a1;
 
-import tage.*;
 import tage.input.action.AbstractInputAction;
-import tage.GameObject; // Add this import
+import tage.GameObject;
+import tage.*;
 import net.java.games.input.Event;
 import org.joml.*;
 
-// ... existing code ...
-
-public class FwdAction extends AbstractInputAction {
+public class YAxisAction extends AbstractInputAction {
     private MyGame game;
     private GameObject av;
     private Vector3f oldPosition, newPosition;
     private Vector4f fwdDirection;
 
-    public FwdAction(MyGame g) {
+    public YAxisAction(MyGame g) {
         game = g;
     }
 
     @Override
     public void performAction(float time, Event e) {
+        // Get the input value (-1.0 to 1.0 from joystick axis)
+        float keyValue = e.getValue();
+
+        // Deadzone check
+        if (keyValue > -.2 && keyValue < .2)
+            return;
+
+        // Get reference to the avatar
         av = game.getAvatar();
         oldPosition = av.getWorldLocation();
         fwdDirection = new Vector4f(0f, 0f, 1f, 1f);
         fwdDirection.mul(av.getWorldRotation());
-        fwdDirection.mul(0.01f);
+        fwdDirection.mul(keyValue * -0.01f);
         newPosition = oldPosition.add(fwdDirection.x(),
                 fwdDirection.y(), fwdDirection.z());
         av.setLocalLocation(newPosition);

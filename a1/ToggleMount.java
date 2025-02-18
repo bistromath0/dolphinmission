@@ -1,4 +1,4 @@
-package myGame;
+package a1;
 
 import tage.*;
 import tage.input.action.AbstractInputAction;
@@ -20,8 +20,15 @@ public class ToggleMount extends AbstractInputAction {
 
     @Override
     public void performAction(float time, Event e) {
+        // if mounted, render camera slightly to the right and front of dolphin
+        if (game.getMounted()) {
+            game.dismount();
 
-        System.out.println("mount toggle test");
+        } else {
+            game.remount();
+        }
+        // game.setMounted(!game.getMounted());
+        // if dismounted, position camera in base position
     }
 
 }

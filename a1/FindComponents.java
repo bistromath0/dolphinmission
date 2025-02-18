@@ -1,4 +1,4 @@
-package MyGame;
+package a1;
 
 import net.java.games.input.Controller;
 import net.java.games.input.ControllerEnvironment;
