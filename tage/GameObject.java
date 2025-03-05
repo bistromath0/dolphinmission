@@ -575,6 +575,18 @@ public class GameObject {
 		setLocalRotation(newRotation);
 	}
 
+	public void globalYaw(int direction) {
+		Matrix4f oldRotation, rotAroundAvatarUp, newRotation;
+
+		oldRotation = new Matrix4f(getWorldRotation());
+		float rotationAmount = direction * 0.005f;
+		rotAroundAvatarUp = new Matrix4f().rotation(rotationAmount,
+				new Vector3f(0, 1, 0));
+		newRotation = oldRotation;
+		newRotation.mul(rotAroundAvatarUp);
+		setLocalRotation(newRotation);
+	}
+
 	/**
 	 * performs a pitch motion on the game object (keyboard), for direction -1 is
 	 * down, 1 is up

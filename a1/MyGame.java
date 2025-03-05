@@ -24,11 +24,12 @@ public class MyGame extends VariableFrameRateGame {
 	private String dispStr2 = "Game start";
 	private boolean mounted = true;
 
-	private GameObject avatar, cube, torus, sphere, x, y, z, rom;
-	private ObjShape dolS, cubeS, torusS, sphereS, linxS, linyS, linzS, romS;
-	private TextureImage doltx, red, yellow, green, defused;
+	private GameObject avatar, cube, torus, sphere, x, y, z, rom, floor;
+	private ObjShape dolS, cubeS, torusS, sphereS, linxS, linyS, linzS, romS, floorS;
+	private TextureImage doltx, red, yellow, green, defused, brick;
 	private Light light1, cubeLight, sphereLight, torusLight;
-	private Camera cam;
+	private Camera cam, overheadCam;
+	private CameraOrbit3D orbitController;
 	private int[] satelliteStates = { 0, 0, 0 }; // cube, sphere, torus
 													// 0 = green, 1 = yellow, -2 = red
 
@@ -60,6 +61,7 @@ public class MyGame extends VariableFrameRateGame {
 		linyS = new Line(new Vector3f(0f, 0f, 0f), new Vector3f(0f, 3f, 0f));
 		linzS = new Line(new Vector3f(0f, 0f, 0f), new Vector3f(0f, 0f, -3f));
 		romS = new ManualPyramid();
+		floorS = new Plane();
 	}
 
 	@Override
@@ -69,12 +71,19 @@ public class MyGame extends VariableFrameRateGame {
 		green = new TextureImage("green.png");
 		yellow = new TextureImage("yellow.png");
 		defused = new TextureImage("defused.png");
+		brick = new TextureImage("brick.jpg");
 
 	}
 
 	@Override
 	public void buildObjects() {
 		Matrix4f initialTranslation, initialScale;
+		floor = new GameObject(GameObject.root(), floorS, brick);
+		floor.getRenderStates().setTiling(1);
+		floor.getRenderStates().setTileFactor(100);
+		initialScale = (new Matrix4f()).scaling(20f);
+		floor.setLocalScale(initialScale);
+
 		rom = new GameObject(GameObject.root(), romS);
 		initialTranslation = (new Matrix4f()).translation(0, -3, 0);
 		rom.setLocalTranslation(initialTranslation);
@@ -84,6 +93,7 @@ public class MyGame extends VariableFrameRateGame {
 		avatar = new GameObject(GameObject.root(), dolS, doltx);
 		initialTranslation = (new Matrix4f()).translation(-1f, 0f, 1f);
 		avatar.setLocalTranslation(initialTranslation);
+
 		cube = new GameObject(GameObject.root(), cubeS, green);
 		initialTranslation = (new Matrix4f()).translation(5, 0, 0);
 		initialScale = (new Matrix4f()).scaling(0.5f);
@@ -135,17 +145,30 @@ public class MyGame extends VariableFrameRateGame {
 	}
 
 	@Override
+	public void createViewports() {
+
+		// ------------- positioning the camera -------------
+		(engine.getRenderSystem()).addViewport("MAIN", 0, 0, 1, 1);
+		engine.getRenderSystem().addViewport("OVERHEAD", 0, 0, 0.2f, 0.2f);
+		(engine.getRenderSystem().getViewport("MAIN").getCamera()).setLocation(new Vector3f(0, 0, 5));
+		cam = (engine.getRenderSystem().getViewport("MAIN").getCamera());
+		overheadCam = (engine.getRenderSystem().getViewport("OVERHEAD").getCamera());
+		overheadCam.setLocation(new Vector3f(0, 5, 0));
+		overheadCam.lookAt(0, 0, 0);
+		System.out.println("viewports created");
+	}
+
+	@Override
 	public void initializeGame() {
+
 		lastFrameTime = System.currentTimeMillis();
 		currFrameTime = System.currentTimeMillis();
 		elapsTime = 0.0;
 		(engine.getRenderSystem()).setWindowDimensions(1900, 1000);
 
-		// ------------- positioning the camera -------------
-		(engine.getRenderSystem().getViewport("MAIN").getCamera()).setLocation(new Vector3f(0, 0, 5));
-
 		positionCamera();
 		im = engine.getInputManager();
+		orbitController = new CameraOrbit3D(cam, avatar, engine);
 
 		FwdAction fwdAction = new FwdAction(this);
 		TurnAction turnAction = new TurnAction(this);
@@ -156,13 +179,14 @@ public class MyGame extends VariableFrameRateGame {
 		PitchDown pitchDown = new PitchDown(this);
 		ToggleMount toggleMount = new ToggleMount(this);
 		YAxisAction yAxis = new YAxisAction(this);
+		OverHeadCamMovement ohc = new OverHeadCamMovement(this);
 
-		im.associateActionWithAllGamepads(
-				net.java.games.input.Component.Identifier.Button._1, fwdAction,
-				InputManager.INPUT_ACTION_TYPE.REPEAT_WHILE_DOWN);
-		im.associateActionWithAllGamepads(
-				net.java.games.input.Component.Identifier.Axis.X, turnAction,
-				InputManager.INPUT_ACTION_TYPE.REPEAT_WHILE_DOWN);
+		// im.associateActionWithAllGamepads(
+		// net.java.games.input.Component.Identifier.Button._1, fwdAction,
+		// InputManager.INPUT_ACTION_TYPE.REPEAT_WHILE_DOWN);
+		// im.associateActionWithAllGamepads(
+		// net.java.games.input.Component.Identifier.Axis.X, turnAction,
+		// InputManager.INPUT_ACTION_TYPE.REPEAT_WHILE_DOWN);
 		im.associateActionWithAllKeyboards(
 				net.java.games.input.Component.Identifier.Key.W, fwdAction,
 				InputManager.INPUT_ACTION_TYPE.REPEAT_WHILE_DOWN);
@@ -186,8 +210,28 @@ public class MyGame extends VariableFrameRateGame {
 		im.associateActionWithAllKeyboards(
 				net.java.games.input.Component.Identifier.Key.SPACE, toggleMount,
 				InputManager.INPUT_ACTION_TYPE.ON_PRESS_ONLY);
-		im.associateActionWithAllGamepads(
-				net.java.games.input.Component.Identifier.Button.Axis.Y, yAxis,
+		// im.associateActionWithAllGamepads(
+		// net.java.games.input.Component.Identifier.Button.Axis.Y, yAxis,
+		// InputManager.INPUT_ACTION_TYPE.REPEAT_WHILE_DOWN);
+
+		// I J K L to control overhead camera
+		im.associateActionWithAllKeyboards(
+				net.java.games.input.Component.Identifier.Key.I, ohc,
+				InputManager.INPUT_ACTION_TYPE.REPEAT_WHILE_DOWN);
+		im.associateActionWithAllKeyboards(
+				net.java.games.input.Component.Identifier.Key.J, ohc,
+				InputManager.INPUT_ACTION_TYPE.REPEAT_WHILE_DOWN);
+		im.associateActionWithAllKeyboards(
+				net.java.games.input.Component.Identifier.Key.K, ohc,
+				InputManager.INPUT_ACTION_TYPE.REPEAT_WHILE_DOWN);
+		im.associateActionWithAllKeyboards(
+				net.java.games.input.Component.Identifier.Key.L, ohc,
+				InputManager.INPUT_ACTION_TYPE.REPEAT_WHILE_DOWN);
+		im.associateActionWithAllKeyboards(
+				net.java.games.input.Component.Identifier.Key.U, ohc,
+				InputManager.INPUT_ACTION_TYPE.REPEAT_WHILE_DOWN);
+		im.associateActionWithAllKeyboards(
+				net.java.games.input.Component.Identifier.Key.O, ohc,
 				InputManager.INPUT_ACTION_TYPE.REPEAT_WHILE_DOWN);
 
 	}
@@ -212,11 +256,12 @@ public class MyGame extends VariableFrameRateGame {
 		}
 		Vector3f hud1Color = new Vector3f(1, 0, 0);
 		Vector3f hud2Color = new Vector3f(0, 0, 1);
-		(engine.getHUDmanager()).setHUD1(dispStr1, hud1Color, 15, 15);
-		(engine.getHUDmanager()).setHUD2(dispStr2, hud2Color, 500, 15);
+		(engine.getHUDmanager()).setHUD1(dispStr1, hud1Color, 0, 0);
+		(engine.getHUDmanager()).setHUD2(dispStr2, hud2Color, 250, 0);
 
 		im.update((float) elapsTime);
-		positionCamera();
+		// positionCamera();
+		orbitController.updateCameraPosition();
 		determineSatelliteColor();
 		if (score == 3) {
 			(engine.getHUDmanager()).setHUD2("You Win!", hud2Color, 500, 15);
@@ -227,7 +272,7 @@ public class MyGame extends VariableFrameRateGame {
 	public void positionCamera() {
 		if (mounted) {
 			// camera locked to avatar (mounted)
-			cam = (engine.getRenderSystem().getViewport("MAIN").getCamera());
+			// cam = (engine.getRenderSystem().getViewport("MAIN").getCamera());
 			loc = avatar.getWorldLocation();
 			fwd = avatar.getWorldForwardVector();
 			up = avatar.getWorldUpVector();
@@ -346,6 +391,10 @@ public class MyGame extends VariableFrameRateGame {
 
 	public Camera getCamera() {
 		return cam;
+	}
+
+	public Camera getOverHeadCamera() {
+		return overheadCam;
 	}
 
 	public void remount() {

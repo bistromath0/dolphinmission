@@ -23,7 +23,7 @@ public class RotLeft extends AbstractInputAction {
         if (game.getMounted()) {
             // Get reference to the avatar
             av = game.getAvatar();
-            av.yaw(1);
+            av.globalYaw(1);
 
         } else {
             // rotates camera left about its up axis. U and N rotated, V stays the same
